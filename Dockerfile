@@ -1,19 +1,17 @@
 # =============================================================================
-# Manhwa Recap Studio — Docker image for Hugging Face Spaces
-# Runs the entire app (Next.js + Python pipeline + socket.io + Caddy) in one
-# container. Free 16 GB RAM, 50 GB storage, 24/7 online.
+# Manhwa Recap Studio — Docker image for local development
+# Runs: Next.js (3000) + Python pipeline (3001) + PaddleOCR service (3002)
 # =============================================================================
 
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# ---- System dependencies ----------------------------------------------------
+# ---- System dependencies (added unzip for Bun installation) ---------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv \
     ffmpeg \
-    caddy \
-    curl ca-certificates git \
+    curl ca-certificates git unzip \
     libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -47,7 +45,7 @@ COPY . .
 RUN bun run build
 
 # ---- Runtime config ---------------------------------------------------------
-# Persistent storage on HF Spaces: /data survives container restarts
+# Persistent storage: /data contains all videos, database, and cache
 ENV DATA_DIR=/data/manhwa-data
 ENV DATABASE_URL=file:/data/db/custom.db
 ENV PROJECT_ROOT=/app
@@ -58,8 +56,8 @@ ENV PORT=3000
 
 RUN mkdir -p /data/db /data/manhwa-data /data/cache
 
-# HF Spaces expects the app on port 7860 (Caddy listens here, proxies to 3000/3001)
-EXPOSE 7860
+# Expose ports for all services
+EXPOSE 3000 3001 3002
 
-# Start script launches: pipeline-service (3001) + Next.js (3000) + Caddy (7860)
-CMD ["bash", "start-hf.sh"]
+# Start script launches: PaddleOCR (3002) + Pipeline (3001) + Next.js (3000)
+CMD ["bash", "start-local.sh"]
